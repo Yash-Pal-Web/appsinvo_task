@@ -98,12 +98,32 @@ const getDistance = async (req, res) => {
     const userLat = req.user.latitude;
     const userLon = req.user.longitude;
 
-    const destLat = parseFloat(req.query.destination_latitude);
-    const destLon = parseFloat(req.query.destination_longitude);
+    // Get query params
+    const destLat = req.query.destination_latitude;
+    const destLon = req.query.destination_longitude;
+
+    // Validate presence
+    if (!destLat || !destLon) {
+      return res.status(400).json({
+        status_code: 400,
+        message: "Please provide both destination_latitude and destination_longitude in query params"
+      });
+    }
+
+    // Validate if they are valid numbers
+    const parsedDestLat = parseFloat(destLat);
+    const parsedDestLon = parseFloat(destLon);
+
+    if (isNaN(parsedDestLat) || isNaN(parsedDestLon)) {
+      return res.status(400).json({
+        status_code: 400,
+        message: "destination_latitude and destination_longitude must be valid numbers"
+      });
+    }
 
     const dist = haversine(
       { lat: userLat, lon: userLon },
-      { lat: destLat, lon: destLon }
+      { lat: parsedDestLat, lon: parsedDestLon }
     );
 
     res.status(200).json({
@@ -123,7 +143,24 @@ const getDistance = async (req, res) => {
 // Get User Listing by Day
 const getUserListing = async (req, res) => {
   try {
-    const days = req.query.week_number.split(',').map(Number);
+    const { week_number } = req.query;
+
+    if (!week_number || week_number.trim() === "") {
+      return res.status(400).json({
+        status_code: 400,
+        message: "Please provide the 'week_number' query parameter. Example: ?week_number=0,1,2"
+      });
+    }
+
+    const days = week_number.split(',').map(Number);
+
+    //  Validate numbers and range (0–6)
+    if (days.some(day => isNaN(day) || day < 0 || day > 6)) {
+      return res.status(400).json({
+        status_code: 400,
+        message: "All values in 'week_number' must be valid numbers between 0 and 6 (0=Sunday, 6=Saturday)."
+      });
+    }
 
     const pipeline = [
       {
@@ -176,6 +213,8 @@ const getUserListing = async (req, res) => {
     });
   }
 };
+
+
 
 module.exports = {
   createUser,
